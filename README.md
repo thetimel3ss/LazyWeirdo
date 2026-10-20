@@ -1,3 +1,5 @@
+Personal fork of LazyWeirdo, maintained for personal use, experimentation, and development purposes only.
+
 # LazyWeirdo 1.8.0
 Automatic loot rules for instances and groups. Have loot handle itself.
 ---
