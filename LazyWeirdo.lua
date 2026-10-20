@@ -502,6 +502,22 @@ local toggle_options = {
   { label = "Pass on Greys",   setting = "pass_greys",      default = false, tooltip = "Do not loot grey items." },
   { label = "Untrack in Raid", setting = "raid_untrack",   default = false, tooltip = "Remove Find Herbs and Find Minerals tracking when entering a raid instance." },
   { label = "Holy Water Only", setting = "only_holy",       default = false, tooltip = "Only loot holy water from Stratholme Chests." },
+  { label = "Stack Split / Merge", setting = "stack_split", default = false, tooltip = "Shift-right-click to choose a stack amount; hold Alt to increase or Ctrl to decrease." },
+  { label = "Improved Right Click", setting = "improved_right_click", default = false, tooltip = "Right-click items to attach to mail, add to trade, or set up auctions." },
+  { label = "Repeatable Quests (Alt)", setting = "quest_repeat", default = false, tooltip = "Hold Alt during hand-in to record and replay a repeatable quest and reward." },
+  { label = "Chat Spam Filter", setting = "chat_spam_filter", default = false, tooltip = "Hide 70-second duplicate player messages, except friends and guild." },
+  { label = "Loot Message Filter", setting = "chat_loot_filter", default = false, tooltip = "Hide chat messages containing green or blue loot links." },
+  { label = "Auto Decline Duels", setting = "auto_decline_duels", default = false, tooltip = "Decline duel requests automatically (hold Shift to bypass)." },
+  { label = "Auto Stance", setting = "auto_stance", default = false, tooltip = "Switch Warrior stance or Druid form when a spell requires one.", class = "WARRIOR_DRUID" },
+  { label = "Mana Buff Remover", setting = "mana_buff_remover", default = false, tooltip = "Remove Wisdom, Intellect and Spirit buffs outside battlegrounds." },
+}
+
+local bg_toggle_options = {
+  { label = "Auto Queue", setting = "bg_auto_queue", default = false, tooltip = "Join the first available queue when interacting with a battlemaster." },
+  { label = "Auto Enter", setting = "bg_auto_enter", default = false, tooltip = "Accept BG entrance shortly before the invitation expires (unless AFK)." },
+  { label = "Auto Leave", setting = "bg_auto_leave", default = false, tooltip = "Leave a battleground automatically once the winner is known." },
+  { label = "Auto Release", setting = "bg_auto_release", default = false, tooltip = "Release spirit automatically when dying inside a battleground." },
+  { label = "Block Shared Quests", setting = "bg_block_quest_share", default = false, tooltip = "Decline incoming quest share confirmations during battlegrounds." },
 }
 
 local default_settings = {
@@ -511,9 +527,14 @@ local default_settings = {
   need_whitelist = true,
   greed_whitelist = true,
   pass_whitelist = true,
+  world_chat_mode = "off",
+  salvation_mode = "off",
 }
 
 for _,opt in ipairs(toggle_options) do
+  default_settings[opt.setting] = opt.default
+end
+for _,opt in ipairs(bg_toggle_options) do
   default_settings[opt.setting] = opt.default
 end
 for _,raid in ipairs(raid_config) do
@@ -1144,6 +1165,8 @@ local weekly_quests = {
 local accepting_weekly = false
 
 function LazyWeirdo:GOSSIP_SHOW()
+  -- Alt-driven QuestRepeat takes precedence over automatic gossip.
+  if LazyWeirdoDB.settings.quest_repeat and IsAltKeyDown() then return end
   -- auto-accept weekly quests from gossip frame
   if LazyWeirdoDB.settings.auto_weeklies and not IsControlKeyDown() then
     local avail = { GetGossipAvailableQuests() }
@@ -1192,6 +1215,7 @@ function LazyWeirdo:GOSSIP_SHOW()
 end
 
 function LazyWeirdo:QUEST_GREETING()
+  if LazyWeirdoDB.settings.quest_repeat and IsAltKeyDown() then return end
   if not LazyWeirdoDB.settings.auto_weeklies or IsControlKeyDown() then return end
   for i = 1, GetNumAvailableQuests() do
     if elem(weekly_quests, GetAvailableTitle(i)) then
@@ -1203,6 +1227,10 @@ function LazyWeirdo:QUEST_GREETING()
 end
 
 function LazyWeirdo:QUEST_DETAIL()
+  if LazyWeirdoDB.settings.quest_repeat and IsAltKeyDown() then
+    accepting_weekly = false
+    return
+  end
   if accepting_weekly then
     accepting_weekly = false
     AcceptQuest()
@@ -1589,55 +1617,109 @@ function LazyWeirdo:CreateConfig()
 
   local _, playerClass = UnitClass("player")
 
-  local function InitializeOptionsDropdown()
-    local btnIdx = 0
-    for _,opt in ipairs(toggle_options) do
-      if opt.class and opt.class ~= playerClass then
-        -- skip options for other classes
-      else
-        local setting_key = opt.setting
-        local info = {}
-        info.text = opt.label
-        info.keepShownOnClick = 1
-        info.checked = LazyWeirdoDB.settings[setting_key] and 1 or nil
-        info.func = function ()
-          LazyWeirdoDB.settings[setting_key] = not LazyWeirdoDB.settings[setting_key]
-          if setting_key == "combat_plates" then
-            if LazyWeirdoDB.settings.combat_plates and not UnitAffectingCombat("player") then
-              HideNameplates()
-            end
-          elseif setting_key == "combat_names" then
-            if not LazyWeirdoDB.settings.combat_names then
-              RestoreNameCVars()
-            end
-          end
-        end
-        UIDropDownMenu_AddButton(info)
-        btnIdx = btnIdx + 1
+  local worldModes = { "off", "dungeon", "raid", "bg", "instances", "always" }
+  local salvationModes = { "off", "always", "smart" }
 
-        local btn = getglobal("DropDownList1Button"..btnIdx)
-        if btn then
-          if not btn.el_orig_enter then
-            btn.el_orig_enter = btn:GetScript("OnEnter")
-            btn.el_orig_leave = btn:GetScript("OnLeave")
-          end
-          btn.el_label = opt.label
-          btn.el_tooltip = opt.tooltip
-          btn:SetScript("OnEnter", function()
-            if this.el_orig_enter then this.el_orig_enter() end
-            if UIDROPDOWNMENU_OPEN_MENU ~= "LazyWeirdoOptionsDropdown" then return end
-            GameTooltip:SetOwner(LazyWeirdoOptionsDropdown, "ANCHOR_BOTTOMRIGHT")
-            GameTooltip:SetText(this.el_label, C.TOOLTIP_R, C.TOOLTIP_G, C.TOOLTIP_B)
-            GameTooltip:AddLine(this.el_tooltip, 1, 1, 1, true)
-            GameTooltip:Show()
-          end)
-          btn:SetScript("OnLeave", function()
-            if this.el_orig_leave then this.el_orig_leave() end
-            GameTooltip:Hide()
-          end)
-        end
-      end -- else (class filter)
+  local function CycleSetting(setting, choices)
+    local nextValue = choices[1]
+    for i, value in ipairs(choices) do
+      if LazyWeirdoDB.settings[setting] == value then
+        nextValue = choices[math.mod(i, table.getn(choices)) + 1]
+        break
+      end
     end
+    LazyWeirdoDB.settings[setting] = nextValue
+    CloseDropDownMenus()
+    if setting == "world_chat_mode" and LWExtra and LWExtra.RefreshWorldChat then
+      LWExtra:RefreshWorldChat()
+    elseif setting == "salvation_mode" and LWExtra and LWExtra.RefreshBuffAutomation then
+      LWExtra:RefreshBuffAutomation()
+    end
+  end
+
+  local function AddToggleOption(opt, level, buttonIndex)
+    local key = opt.setting
+    local info = {}
+    info.text = opt.label
+    info.keepShownOnClick = 1
+    info.checked = LazyWeirdoDB.settings[key] and 1 or nil
+    info.func = function()
+      LazyWeirdoDB.settings[key] = not LazyWeirdoDB.settings[key]
+      if key == "combat_plates" and LazyWeirdoDB.settings.combat_plates
+          and not UnitAffectingCombat("player") then
+        HideNameplates()
+      elseif key == "combat_names" and not LazyWeirdoDB.settings.combat_names then
+        RestoreNameCVars()
+      elseif key == "mana_buff_remover" and LWExtra and LWExtra.RefreshBuffAutomation then
+        LWExtra:RefreshBuffAutomation()
+      end
+    end
+    UIDropDownMenu_AddButton(info, level)
+
+    local btn = getglobal("DropDownList"..level.."Button"..buttonIndex)
+    if btn then
+      if not btn.el_orig_enter then
+        btn.el_orig_enter = btn:GetScript("OnEnter")
+        btn.el_orig_leave = btn:GetScript("OnLeave")
+      end
+      btn.el_label = opt.label
+      btn.el_tooltip = opt.tooltip
+      btn:SetScript("OnEnter", function()
+        if this.el_orig_enter then this.el_orig_enter() end
+        GameTooltip:SetOwner(optionsDropdown, "ANCHOR_BOTTOMRIGHT")
+        GameTooltip:SetText(this.el_label, C.TOOLTIP_R, C.TOOLTIP_G, C.TOOLTIP_B)
+        GameTooltip:AddLine(this.el_tooltip or "", 1, 1, 1, true)
+        GameTooltip:Show()
+      end)
+      btn:SetScript("OnLeave", function()
+        if this.el_orig_leave then this.el_orig_leave() end
+        GameTooltip:Hide()
+      end)
+    end
+  end
+
+  local function InitializeOptionsDropdown(level)
+    level = level or 1
+    if level == 2 then
+      if UIDROPDOWNMENU_MENU_VALUE ~= "LW_BATTLEGROUNDS" then return end
+      for i, opt in ipairs(bg_toggle_options) do
+        AddToggleOption(opt, level, i)
+      end
+      return
+    end
+
+    local btnIdx = 0
+    for _, opt in ipairs(toggle_options) do
+      if not opt.class or opt.class == playerClass
+          or (opt.class == "WARRIOR_DRUID"
+              and (playerClass == "WARRIOR" or playerClass == "DRUID")) then
+        btnIdx = btnIdx + 1
+        AddToggleOption(opt, 1, btnIdx)
+      end
+    end
+
+    local modes = {
+      { setting = "world_chat_mode", label = "World Chat", choices = worldModes,
+        tooltip = "Cycle through Off, Dungeons, Raids, Battlegrounds, All Instances, Always." },
+      { setting = "salvation_mode", label = "Salvation Remover", choices = salvationModes,
+        tooltip = "Cycle through Off, Always, and Smart tank detection." },
+    }
+    for _, opt in ipairs(modes) do
+      local info = {}
+      info.text = opt.label .. ": " .. tostring(LazyWeirdoDB.settings[opt.setting])
+      info.notCheckable = 1
+      info.tooltipTitle = opt.label
+      info.tooltipText = opt.tooltip
+      info.func = function() CycleSetting(opt.setting, opt.choices) end
+      UIDropDownMenu_AddButton(info, 1)
+    end
+
+    local info = {}
+    info.text = "Battlegrounds"
+    info.notCheckable = 1
+    info.hasArrow = 1
+    info.value = "LW_BATTLEGROUNDS"
+    UIDropDownMenu_AddButton(info, 1)
   end
 
   UIDropDownMenu_Initialize(optionsDropdown, InitializeOptionsDropdown)
