@@ -7,11 +7,11 @@
 ## OptionalDeps: SuperAPI, pfUI
 
 LazyWeirdo.lua
-Modules\\Controller.lua
-Modules\\Inventory.lua
-Modules\\Battlegrounds.lua
-Modules\\Quests.lua
-Modules\\Chat.lua
-Modules\\Automation.lua
-Modules\\Keybindings.lua
+Modules\Controller.lua
+Modules\Inventory.lua
+Modules\Battlegrounds.lua
+Modules\Quests.lua
+Modules\Chat.lua
+Modules\Automation.lua
+Modules\Keybindings.lua
 Bindings.xml
