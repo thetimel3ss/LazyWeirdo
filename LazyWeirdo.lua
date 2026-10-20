@@ -1698,6 +1698,13 @@ function LazyWeirdo:CreateConfig()
 
   local function AddLWDropdownButton(info, level, owner, tip, removal)
     level = level or 1
+    local list = getglobal("DropDownList" .. level)
+    -- Vanilla supports only 32 entries per dropdown level. Skip overflow
+    -- safely instead of accidentally attaching metadata to the last button.
+    if not list or (list.numButtons and
+        list.numButtons >= (UIDROPDOWNMENU_MAXBUTTONS or 32)) then
+      return
+    end
     -- Capture native-style tooltip descriptions before deliberately clearing
     -- them, so only the consistent Add New Item rendering is shown.
     if not tip and info.tooltipTitle then
@@ -1707,8 +1714,7 @@ function LazyWeirdo:CreateConfig()
     info.tooltipText = nil
 
     UIDropDownMenu_AddButton(info, level)
-    local list = getglobal("DropDownList" .. level)
-    if not list or not list.numButtons then return end
+    if not list.numButtons then return end
     local button = getglobal(list:GetName() .. "Button" .. list.numButtons)
     if not button then return end
 
