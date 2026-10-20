@@ -55,6 +55,17 @@ Drop WSG Flag/Remove Slow Fall.
 
 No fixed Ctrl+Alt combinations or default key assignments are imposed.
 
+## Tooltip compatibility (Vanilla 1.12.1)
+
+The native Blizzard `UIDropDownMenu_AddButton` API provides
+`tooltipTitle` and `tooltipText` for each dropdown entry.
+Do not replace a dropdown item's `OnEnter`/`OnLeave` scripts with
+a second `GameTooltip` handler: Blizzard reuses those button frames,
+and duplicate handlers can show repeated/overlapping tooltip text.
+All new and original Options toggles now use the single native tooltip
+path, including World Chat, Salvation Remover and Battlegrounds.
+After updating the addon, use `/reload` before retesting the menu.
+
 ## Test checklist in the Vanilla 1.12.1 client
 
 1. Confirm the addon loads without a Lua error and `/lw` still opens the
