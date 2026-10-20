@@ -941,7 +941,7 @@ end
 -- Register events
 LazyWeirdo:RegisterEvent("VARIABLES_LOADED")
 LazyWeirdo:SetScript("OnEvent", function ()
-  LazyWeirdo[event](this,arg1,arg2,arg3,arg4,arg6,arg7,arg8,arg9,arg9,arg10)
+  LazyWeirdo[event](this,arg1,arg2,arg3,arg4,arg5,arg6,arg7,arg8,arg9,arg10)
 end)
 
 function LazyWeirdo:Load()
@@ -1205,7 +1205,7 @@ function LazyWeirdo:GOSSIP_SHOW()
     end
     -- check for specific gossips to skip
     if entry.gossip == "gossip" then
-      for _,line in gossips_skip_lines do
+      for _,line in pairs(gossips_skip_lines) do
         if string.find(entry.text, line) then
           SelectGossipOption(i); break
         end
