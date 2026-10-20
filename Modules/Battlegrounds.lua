@@ -81,8 +81,6 @@ function M:OnEvent(ev)
     RepopMe()
   elseif ev == "DUEL_REQUESTED" and LWExtra:Enabled("auto_decline_duels") then
     if not IsShiftKeyDown() then CancelDuel() end
-  elseif ev == "QUEST_ACCEPT_CONFIRM" and LWExtra:Enabled("bg_block_quest_share") and InBG() then
-    if StaticPopup_Hide then StaticPopup_Hide("QUEST_ACCEPT") end
   end
 end
 
@@ -96,5 +94,5 @@ end
 
 LWExtra:Register("Battlegrounds", M, {
   "BATTLEFIELDS_SHOW", "UPDATE_BATTLEFIELD_STATUS", "PLAYER_ENTERING_WORLD",
-  "PLAYER_DEAD", "DUEL_REQUESTED", "QUEST_ACCEPT_CONFIRM"
+  "PLAYER_DEAD", "DUEL_REQUESTED"
 })
