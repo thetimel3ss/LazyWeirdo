@@ -13,13 +13,13 @@ local function CurrentArea()
 end
 
 local function HideWorldHere()
-  local mode = LWExtra:Value("world_chat_mode") or "off"
+  -- Independent selections, equivalent to LazyPig's per-instance World options.
+  -- This changes chat-frame channel visibility; it never calls LeaveChannelByName.
   local area = CurrentArea()
-  return mode == "always"
-    or (mode == "dungeon" and area == "party")
-    or (mode == "raid" and area == "raid")
-    or (mode == "bg" and area == "pvp")
-    or (mode == "instances" and (area == "party" or area == "raid" or area == "pvp"))
+  return LWExtra:Enabled("world_mute_always")
+    or (area == "party" and LWExtra:Enabled("world_mute_dungeons"))
+    or (area == "raid" and LWExtra:Enabled("world_mute_raids"))
+    or (area == "pvp" and LWExtra:Enabled("world_mute_bgs"))
 end
 
 local function ContainsChannel(frame, name)
