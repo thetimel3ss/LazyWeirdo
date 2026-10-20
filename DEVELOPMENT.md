@@ -55,16 +55,30 @@ Drop WSG Flag/Remove Slow Fall.
 
 No fixed Ctrl+Alt combinations or default key assignments are imposed.
 
-## Tooltip compatibility (Vanilla 1.12.1)
+## Dropdown tooltip compatibility (Vanilla 1.12.1)
 
-The native Blizzard `UIDropDownMenu_AddButton` API provides
-`tooltipTitle` and `tooltipText` for each dropdown entry.
-Do not replace a dropdown item's `OnEnter`/`OnLeave` scripts with
-a second `GameTooltip` handler: Blizzard reuses those button frames,
-and duplicate handlers can show repeated/overlapping tooltip text.
-All new and original Options toggles now use the single native tooltip
-path, including World Chat, Salvation Remover and Battlegrounds.
-After updating the addon, use `/reload` before retesting the menu.
+All LazyWeirdo Options entries (including World Chat, Salvation Remover and
+Battlegrounds) and list entries now display the same tooltip style as the
+original **Add New Item**: title in the addon tooltip color, white description,
+optional grey instruction, and `ANCHOR_BOTTOMRIGHT` positioning.
+
+The 1.12.1 dropdown controls recycle the physical `DropDownListNButtonM`
+frames across menu owners and depths. The addon installs the hover/click
+wrappers **once per button** and updates their owner-scoped data whenever that
+button is used for a different menu entry. Vanilla hover/arrow navigation and
+left-click behavior are preserved. The built-in `tooltipTitle`/
+`tooltipText` fields are cleared before adding the button, preventing a
+second NewbieTip from appearing. Item-list right-click deletion is handled
+by the same owner-checked wrapper, avoiding stale removal callbacks.
+
+After updating the addon, **reload the UI** and test the following:
+- Hover the original Options toggles and the Off/Always/Smart Salvation modes.
+- Hover the World Chat and Battleground parent entries and their submenus.
+- Hover Add New Item and individual entries in Buy/Sell/Need/Greed/Pass lists.
+- Switch repeatedly between menus and confirm each tooltip matches its row.
+- Confirm list right-click still asks for removal, while right-clicking an
+  Options toggle never opens a stale item-removal prompt.
+- Confirm left-click toggles, mode selection and submenu arrows still work.
 
 ## Test checklist in the Vanilla 1.12.1 client
 
