@@ -1,0 +1,29 @@
+<Bindings>
+  <Binding name="LW_OPEN_CONFIG" header="LW_BINDINGS">
+    LazyWeirdoBindings.ToggleConfig()
+  </Binding>
+  <Binding name="LW_RELOAD">
+    LazyWeirdoBindings.Reload()
+  </Binding>
+  <Binding name="LW_LOGOUT">
+    LazyWeirdoBindings.Logout()
+  </Binding>
+  <Binding name="LW_UNSTUCK">
+    LazyWeirdoBindings.Unstuck()
+  </Binding>
+  <Binding name="LW_FOLLOW">
+    LazyWeirdoBindings.Follow()
+  </Binding>
+  <Binding name="LW_INSPECT">
+    LazyWeirdoBindings.Inspect()
+  </Binding>
+  <Binding name="LW_TRADE">
+    LazyWeirdoBindings.Trade()
+  </Binding>
+  <Binding name="LW_DUEL_EFC">
+    LazyWeirdoBindings.DuelEFC()
+  </Binding>
+  <Binding name="LW_DROP_FLAG">
+    LazyWeirdoBindings.DropFlag()
+  </Binding>
+</Bindings>
