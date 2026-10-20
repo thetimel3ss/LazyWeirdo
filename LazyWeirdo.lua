@@ -1665,7 +1665,6 @@ function LazyWeirdo:CreateConfig()
     info.checked = LazyWeirdoDB.settings.salvation_mode == mode and 1 or nil
     info.tooltipTitle = label
     info.tooltipText = tooltip
-    info.tooltipOnButton = 1
     info.func = function()
       LazyWeirdoDB.settings.salvation_mode = mode
       CloseDropDownMenus()
@@ -1676,12 +1675,16 @@ function LazyWeirdo:CreateConfig()
     UIDropDownMenu_AddButton(info, 2)
   end
 
-  local function AddToggleOption(opt, level, buttonIndex)
+  local function AddToggleOption(opt, level)
     local key = opt.setting
     local info = {}
     info.text = opt.label
     info.keepShownOnClick = 1
     info.checked = LazyWeirdoDB.settings[key] and 1 or nil
+    -- Blizzard Vanilla 1.12.1 handles tooltips and submenu hover natively.
+    -- Dropdown button frames are reused; don't replace their mouse scripts.
+    info.tooltipTitle = opt.label
+    info.tooltipText = opt.tooltip
     info.func = function()
       LazyWeirdoDB.settings[key] = not LazyWeirdoDB.settings[key]
       if key == "combat_plates" and LazyWeirdoDB.settings.combat_plates
@@ -1696,39 +1699,18 @@ function LazyWeirdo:CreateConfig()
       end
     end
     UIDropDownMenu_AddButton(info, level)
-
-    local btn = getglobal("DropDownList"..level.."Button"..buttonIndex)
-    if btn then
-      if not btn.el_orig_enter then
-        btn.el_orig_enter = btn:GetScript("OnEnter")
-        btn.el_orig_leave = btn:GetScript("OnLeave")
-      end
-      btn.el_label = opt.label
-      btn.el_tooltip = opt.tooltip
-      btn:SetScript("OnEnter", function()
-        if this.el_orig_enter then this.el_orig_enter() end
-        GameTooltip:SetOwner(optionsDropdown, "ANCHOR_BOTTOMRIGHT")
-        GameTooltip:SetText(this.el_label, C.TOOLTIP_R, C.TOOLTIP_G, C.TOOLTIP_B)
-        GameTooltip:AddLine(this.el_tooltip or "", 1, 1, 1, true)
-        GameTooltip:Show()
-      end)
-      btn:SetScript("OnLeave", function()
-        if this.el_orig_leave then this.el_orig_leave() end
-        GameTooltip:Hide()
-      end)
-    end
   end
 
   local function InitializeOptionsDropdown(level)
     level = level or 1
     if level == 2 then
       if UIDROPDOWNMENU_MENU_VALUE == "LW_BATTLEGROUNDS" then
-        for i, option in ipairs(bg_toggle_options) do
-          AddToggleOption(option, level, i)
+        for _, option in ipairs(bg_toggle_options) do
+          AddToggleOption(option, level)
         end
       elseif UIDROPDOWNMENU_MENU_VALUE == "LW_WORLD_CHAT" then
-        for i, option in ipairs(world_toggle_options) do
-          AddToggleOption(option, level, i)
+        for _, option in ipairs(world_toggle_options) do
+          AddToggleOption(option, level)
         end
       elseif UIDROPDOWNMENU_MENU_VALUE == "LW_SALVATION" then
         for _, option in ipairs(salvation_choices) do
@@ -1738,13 +1720,11 @@ function LazyWeirdo:CreateConfig()
       return
     end
 
-    local btnIdx = 0
     for _, option in ipairs(toggle_options) do
       if not option.class or option.class == playerClass
           or (option.class == "WARRIOR_DRUID"
               and (playerClass == "WARRIOR" or playerClass == "DRUID")) then
-        btnIdx = btnIdx + 1
-        AddToggleOption(option, 1, btnIdx)
+        AddToggleOption(option, 1)
       end
     end
 
@@ -1755,7 +1735,6 @@ function LazyWeirdo:CreateConfig()
     worldInfo.value = "LW_WORLD_CHAT"
     worldInfo.tooltipTitle = "World Chat Management"
     worldInfo.tooltipText = "Temporarily hide messages from the /world channel in selected locations. Does NOT leave /world, block players or affect Guild, Party, Raid or other chat channels. Messages return when the restriction ends."
-    worldInfo.tooltipOnButton = 1
     UIDropDownMenu_AddButton(worldInfo, 1)
 
     local salvationInfo = {}
@@ -1765,7 +1744,6 @@ function LazyWeirdo:CreateConfig()
     salvationInfo.value = "LW_SALVATION"
     salvationInfo.tooltipTitle = "Salvation Remover"
     salvationInfo.tooltipText = "Choose Off, Always or Smart. Smart removes Salvation only when your class, equipped shield or active form indicates tanking."
-    salvationInfo.tooltipOnButton = 1
     UIDropDownMenu_AddButton(salvationInfo, 1)
 
     local bgInfo = {}
