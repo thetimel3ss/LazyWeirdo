@@ -512,6 +512,18 @@ local toggle_options = {
   { label = "Mana Buff Remover", setting = "mana_buff_remover", default = false, tooltip = "Remove Wisdom, Intellect and Spirit buffs outside battlegrounds." },
 }
 
+-- The World submenu mirrors LazyPig: select any combination of locations.
+local world_toggle_options = {
+  { label = "Mute in Dungeons", setting = "world_mute_dungeons", default = false,
+    tooltip = "Hide messages from /world while inside 5-player dungeons. Restore them upon leaving." },
+  { label = "Mute in Raids", setting = "world_mute_raids", default = false,
+    tooltip = "Hide messages from /world while inside raid instances. Restore them upon leaving." },
+  { label = "Mute in Battlegrounds", setting = "world_mute_bgs", default = false,
+    tooltip = "Hide messages from /world while inside battlegrounds. Restore them upon leaving." },
+  { label = "Mute Always", setting = "world_mute_always", default = false,
+    tooltip = "Hide /world messages everywhere until disabled. Other chat channels are unaffected." },
+}
+
 local bg_toggle_options = {
   { label = "Auto Queue", setting = "bg_auto_queue", default = false, tooltip = "Join the first available queue when interacting with a battlemaster." },
   { label = "Auto Enter", setting = "bg_auto_enter", default = false, tooltip = "Accept BG entrance shortly before the invitation expires (unless AFK)." },
@@ -527,7 +539,6 @@ local default_settings = {
   need_whitelist = true,
   greed_whitelist = true,
   pass_whitelist = true,
-  world_chat_mode = "off",
   salvation_mode = "off",
 }
 
@@ -535,6 +546,9 @@ for _,opt in ipairs(toggle_options) do
   default_settings[opt.setting] = opt.default
 end
 for _,opt in ipairs(bg_toggle_options) do
+  default_settings[opt.setting] = opt.default
+end
+for _,opt in ipairs(world_toggle_options) do
   default_settings[opt.setting] = opt.default
 end
 for _,raid in ipairs(raid_config) do
@@ -963,6 +977,25 @@ function LazyWeirdo:Load()
     if LazyWeirdoDB.settings[k] == nil then
       LazyWeirdoDB.settings[k] = v
     end
+  end
+  -- One-time migration from the old cycling World Chat setting.
+  -- Keep a user's previously selected coverage when upgrading this branch.
+  local previousWorld = LazyWeirdoDB.settings.world_chat_mode
+  if previousWorld ~= nil then
+    if previousWorld == "always" then
+      LazyWeirdoDB.settings.world_mute_always = true
+    elseif previousWorld == "instances" then
+      LazyWeirdoDB.settings.world_mute_dungeons = true
+      LazyWeirdoDB.settings.world_mute_raids = true
+      LazyWeirdoDB.settings.world_mute_bgs = true
+    elseif previousWorld == "dungeon" then
+      LazyWeirdoDB.settings.world_mute_dungeons = true
+    elseif previousWorld == "raid" then
+      LazyWeirdoDB.settings.world_mute_raids = true
+    elseif previousWorld == "bg" then
+      LazyWeirdoDB.settings.world_mute_bgs = true
+    end
+    LazyWeirdoDB.settings.world_chat_mode = nil
   end
 end
 
@@ -1617,24 +1650,30 @@ function LazyWeirdo:CreateConfig()
 
   local _, playerClass = UnitClass("player")
 
-  local worldModes = { "off", "dungeon", "raid", "bg", "instances", "always" }
-  local salvationModes = { "off", "always", "smart" }
+  -- The original main Options dropdown remains unchanged in appearance.
+  -- Submenus are handled by explicit values rather than loop-variable callbacks.
+  local salvation_choices = {
+    { mode = "off", label = "Off", tooltip = "Never remove Blessing of Salvation automatically." },
+    { mode = "always", label = "Always", tooltip = "Remove Blessing of Salvation and Greater Blessing of Salvation whenever they are detected." },
+    { mode = "smart", label = "Smart", tooltip = "Remove Salvation only when tanking is inferred: Warrior/Shaman with a shield, Druid in Bear Form, or Paladin with Righteous Fury. Shaman also needs Spirit Armor rank 2." },
+  }
 
-  local function CycleSetting(setting, choices)
-    local nextValue = choices[1]
-    for i, value in ipairs(choices) do
-      if LazyWeirdoDB.settings[setting] == value then
-        nextValue = choices[math.mod(i, table.getn(choices)) + 1]
-        break
+  local function AddSalvationOption(mode, label, tooltip)
+    -- Capture stable function arguments, not a for-loop variable from a dropdown rebuild.
+    local info = {}
+    info.text = label
+    info.checked = LazyWeirdoDB.settings.salvation_mode == mode and 1 or nil
+    info.tooltipTitle = label
+    info.tooltipText = tooltip
+    info.tooltipOnButton = 1
+    info.func = function()
+      LazyWeirdoDB.settings.salvation_mode = mode
+      CloseDropDownMenus()
+      if LWExtra and LWExtra.RefreshBuffAutomation then
+        LWExtra:RefreshBuffAutomation()
       end
     end
-    LazyWeirdoDB.settings[setting] = nextValue
-    CloseDropDownMenus()
-    if setting == "world_chat_mode" and LWExtra and LWExtra.RefreshWorldChat then
-      LWExtra:RefreshWorldChat()
-    elseif setting == "salvation_mode" and LWExtra and LWExtra.RefreshBuffAutomation then
-      LWExtra:RefreshBuffAutomation()
-    end
+    UIDropDownMenu_AddButton(info, 2)
   end
 
   local function AddToggleOption(opt, level, buttonIndex)
@@ -1652,6 +1691,8 @@ function LazyWeirdo:CreateConfig()
         RestoreNameCVars()
       elseif key == "mana_buff_remover" and LWExtra and LWExtra.RefreshBuffAutomation then
         LWExtra:RefreshBuffAutomation()
+      elseif string.find(key, "^world_mute_") and LWExtra and LWExtra.RefreshWorldChat then
+        LWExtra:RefreshWorldChat()
       end
     end
     UIDropDownMenu_AddButton(info, level)
@@ -1681,45 +1722,58 @@ function LazyWeirdo:CreateConfig()
   local function InitializeOptionsDropdown(level)
     level = level or 1
     if level == 2 then
-      if UIDROPDOWNMENU_MENU_VALUE ~= "LW_BATTLEGROUNDS" then return end
-      for i, opt in ipairs(bg_toggle_options) do
-        AddToggleOption(opt, level, i)
+      if UIDROPDOWNMENU_MENU_VALUE == "LW_BATTLEGROUNDS" then
+        for i, option in ipairs(bg_toggle_options) do
+          AddToggleOption(option, level, i)
+        end
+      elseif UIDROPDOWNMENU_MENU_VALUE == "LW_WORLD_CHAT" then
+        for i, option in ipairs(world_toggle_options) do
+          AddToggleOption(option, level, i)
+        end
+      elseif UIDROPDOWNMENU_MENU_VALUE == "LW_SALVATION" then
+        for _, option in ipairs(salvation_choices) do
+          AddSalvationOption(option.mode, option.label, option.tooltip)
+        end
       end
       return
     end
 
     local btnIdx = 0
-    for _, opt in ipairs(toggle_options) do
-      if not opt.class or opt.class == playerClass
-          or (opt.class == "WARRIOR_DRUID"
+    for _, option in ipairs(toggle_options) do
+      if not option.class or option.class == playerClass
+          or (option.class == "WARRIOR_DRUID"
               and (playerClass == "WARRIOR" or playerClass == "DRUID")) then
         btnIdx = btnIdx + 1
-        AddToggleOption(opt, 1, btnIdx)
+        AddToggleOption(option, 1, btnIdx)
       end
     end
 
-    local modes = {
-      { setting = "world_chat_mode", label = "World Chat", choices = worldModes,
-        tooltip = "Cycle through Off, Dungeons, Raids, Battlegrounds, All Instances, Always." },
-      { setting = "salvation_mode", label = "Salvation Remover", choices = salvationModes,
-        tooltip = "Cycle through Off, Always, and Smart tank detection." },
-    }
-    for _, opt in ipairs(modes) do
-      local info = {}
-      info.text = opt.label .. ": " .. tostring(LazyWeirdoDB.settings[opt.setting])
-      info.notCheckable = 1
-      info.tooltipTitle = opt.label
-      info.tooltipText = opt.tooltip
-      info.func = function() CycleSetting(opt.setting, opt.choices) end
-      UIDropDownMenu_AddButton(info, 1)
-    end
+    local worldInfo = {}
+    worldInfo.text = "World Chat"
+    worldInfo.notCheckable = 1
+    worldInfo.hasArrow = 1
+    worldInfo.value = "LW_WORLD_CHAT"
+    worldInfo.tooltipTitle = "World Chat Management"
+    worldInfo.tooltipText = "Temporarily hide messages from the /world channel in selected locations. Does NOT leave /world, block players or affect Guild, Party, Raid or other chat channels. Messages return when the restriction ends."
+    worldInfo.tooltipOnButton = 1
+    UIDropDownMenu_AddButton(worldInfo, 1)
 
-    local info = {}
-    info.text = "Battlegrounds"
-    info.notCheckable = 1
-    info.hasArrow = 1
-    info.value = "LW_BATTLEGROUNDS"
-    UIDropDownMenu_AddButton(info, 1)
+    local salvationInfo = {}
+    salvationInfo.text = "Salvation Remover"
+    salvationInfo.notCheckable = 1
+    salvationInfo.hasArrow = 1
+    salvationInfo.value = "LW_SALVATION"
+    salvationInfo.tooltipTitle = "Salvation Remover"
+    salvationInfo.tooltipText = "Choose Off, Always or Smart. Smart removes Salvation only when your class, equipped shield or active form indicates tanking."
+    salvationInfo.tooltipOnButton = 1
+    UIDropDownMenu_AddButton(salvationInfo, 1)
+
+    local bgInfo = {}
+    bgInfo.text = "Battlegrounds"
+    bgInfo.notCheckable = 1
+    bgInfo.hasArrow = 1
+    bgInfo.value = "LW_BATTLEGROUNDS"
+    UIDropDownMenu_AddButton(bgInfo, 1)
   end
 
   UIDropDownMenu_Initialize(optionsDropdown, InitializeOptionsDropdown)
