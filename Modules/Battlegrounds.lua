@@ -48,6 +48,21 @@ local function CheckLeave()
   end
 end
 
+function M:Init()
+  -- QUEST_ACCEPT confirmations are StaticPopup dialogs in Vanilla, not a
+  -- dependable independent game event. Wrap the original show handler.
+  if type(StaticPopup_OnShow) ~= "function" then return end
+  local original = StaticPopup_OnShow
+  StaticPopup_OnShow = function()
+    if LWExtra:Enabled("bg_block_quest_share") and InBG()
+        and this and this.which == "QUEST_ACCEPT" then
+      this:Hide()
+      return
+    end
+    return original()
+  end
+end
+
 function M:OnEvent(ev)
   if ev == "BATTLEFIELDS_SHOW" and LWExtra:Enabled("bg_auto_queue") then
     if GetTime() - lastQueue < 1 then return end
