@@ -68,7 +68,8 @@ local function FilterChat(ev, msg, author)
     if ev == "CHAT_MSG_SAY" or ev == "CHAT_MSG_YELL" or ev == "CHAT_MSG_CHANNEL" then
       if not IsTrusted(author) then
         local now = GetTime()
-        local key = tostring(author or "") .. "|" .. msg
+        local frameName = this and this.GetName and this:GetName() or ""
+        local key = frameName .. "|" .. tostring(author or "") .. "|" .. msg
         if seen[key] and now - seen[key] < 70 then return true end
         seen[key] = now
       end
