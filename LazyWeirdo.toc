@@ -3,7 +3,15 @@
 ## Notes: Have loot handle itself
 ## Author: Weird Vibes
 ## SavedVariablesPerCharacter: LazyWeirdoDB
-## Version: 1.8.0
+## Version: 1.8.0-personal-dev
 ## OptionalDeps: SuperAPI, pfUI
 
 LazyWeirdo.lua
+Modules\\Controller.lua
+Modules\\Inventory.lua
+Modules\\Battlegrounds.lua
+Modules\\Quests.lua
+Modules\\Chat.lua
+Modules\\Automation.lua
+Modules\\Keybindings.lua
+Bindings.xml
