@@ -25,18 +25,26 @@ start disabled; existing settings are not reset or replaced.
 - **Chat Spam Filter:** repeated author+text lines are hidden for 70 seconds,
   separately for each chat window. Friends and guildmates are exempt.
 - **Loot Message Filter:** optionally hide green/blue loot-link chat lines.
-- **World Chat:** click the mode entry to cycle Off, Dungeon, Raid, BG,
-  All Instances, Always. Visibility is restored only for chat frames this
-  addon previously changed; it will never auto-join a World channel that
-  you have left manually.
+- **World Chat** (submenu): choose any combination of **Mute in Dungeons**,
+  **Mute in Raids**, **Mute in Battlegrounds**, or **Mute Always**. When one
+  of these conditions is active, messages from the `/world` channel are
+  temporarily hidden in the chat windows where the channel was enabled.
+  The addon does **not** leave the channel, block players, or silence Guild,
+  Party, Raid, or other channels. Visibility is restored when the restriction
+  ends, only in chat frames that this addon changed. It will not
+  automatically rejoin `/world` if the player left the channel manually.
+  Disable all four options to always display `/world` normally.
 - **Auto Decline Duels:** hold Shift to bypass.
 - **Auto Stance:** Warriors/Druids only; react to stance-required spell errors.
-- **Salvation Remover:** Off, Always, Smart. Smart uses shields/Bear Form/
-  Righteous Fury/Spirit Armor where appropriate.
+- **Salvation Remover** (submenu): **Off**, **Always**, or **Smart**
+  (mutually exclusive). Smart checks equipped shields, Bear Form,
+  Righteous Fury, or Spirit Armor, depending on class.
 - **Mana Buff Remover:** removes selected Wisdom/Intellect/Spirit buffs
   outside BGs. This is intentionally off by default.
-- **Battlegrounds** (only new submenu): Auto Queue, Auto Enter, Auto Leave,
-  Auto Release and Block Shared Quests.
+- **Battlegrounds** (submenu): Auto Queue, Auto Enter, Auto Leave,
+  Auto Release and Block Shared Quests. All three category menus use
+  Blizzard's native arrow submenus (`Options > World Chat`,
+  `Options > Salvation Remover`, `Options > Battlegrounds`).
 
 ### Native key bindings
 
@@ -53,8 +61,10 @@ No fixed Ctrl+Alt combinations or default key assignments are imposed.
    unchanged main panel.
 2. Confirm all existing Need/Greed/Pass raid options and white lists persist
    after `/reload`; verify auto-loot and merchant selling/repair as before.
-3. Check each new checkbox and the world/salvation mode cycle, reload, and
-   confirm choices persist per character.
+3. Open the World Chat, Salvation Remover and Battlegrounds arrow
+   submenus. Select multiple World Chat locations independently; choose
+   exactly one Salvation mode (Off, Always, Smart); reload and confirm all
+   choices persist per character. Confirm neither submenu throws a Lua error.
 4. Test splitting a stack, merging two identical stacks, full bags, locked
    stacks and inventory changes during an operation.
 5. Test right-click in default trade, mail (including non-mailable items),
@@ -72,8 +82,10 @@ No fixed Ctrl+Alt combinations or default key assignments are imposed.
 10. Check native Key Bindings for every action and confirm no existing
     shortcuts were overwritten.
 
-**Status:** code integrated and structurally reviewed; not tested in a
-running Vanilla/OctoWoW client. Optional integrations and server-specific
+**Status:** code integrated and structurally reviewed; the World Chat /
+Salvation dropdown callbacks were replaced after an in-game Lua error was
+reported at LazyWeirdo.lua:1713. The submenu fix itself has not yet been
+tested in a running Vanilla/OctoWoW client. Optional integrations and server-specific
 APIs require in-game verification.
 
 ## Source acknowledgment
