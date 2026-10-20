@@ -1645,6 +1645,96 @@ function LazyWeirdo:CreateConfig()
   end
 
   ----------------------------------------------------------------------
+  -- Shared dropdown tooltip and right-click support (WoW Vanilla 1.12.1).
+  --
+  -- Blizzard reuses DropDownList{level}Button{index} across ALL dropdowns.
+  -- Install the wrapper only once per physical button, preserve Blizzard's
+  -- native hover/click scripts and change only the data for each menu entry.
+  -- Do not use tooltipTitle/tooltipText on these buttons: Vanilla's
+  -- GameTooltip_AddNewbieTip would show a second, differently styled tooltip.
+  local function LWDropdownOnEnter()
+    if this.lwBaseEnter then this.lwBaseEnter() end
+
+    local data = this.lwTooltip
+    if not data or UIDROPDOWNMENU_OPEN_MENU ~= data.owner then return end
+    GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
+    GameTooltip:SetText(data.title or this:GetText() or "", C.TOOLTIP_R, C.TOOLTIP_G, C.TOOLTIP_B)
+    if data.extra and data.extra ~= "" then
+      GameTooltip:AddLine(data.extra, 1, 1, 1, true)
+    end
+    if data.text and data.text ~= "" then
+      GameTooltip:AddLine(data.text, 1, 1, 1, true)
+    end
+    if data.hint and data.hint ~= "" then
+      GameTooltip:AddLine(data.hint, 0.5, 0.5, 0.5, true)
+    end
+    GameTooltip:Show()
+  end
+
+  local function LWDropdownOnLeave()
+    if this.lwBaseLeave then this.lwBaseLeave() end
+    if this.lwTooltip and UIDROPDOWNMENU_OPEN_MENU == this.lwTooltip.owner then
+      GameTooltip:Hide()
+    end
+  end
+
+  local function LWDropdownOnClick()
+    -- Keep the original list-entry right-click-to-remove action, but only
+    -- while its owning dropdown is currently open.
+    local removal = this.lwRemoval
+    if arg1 == "RightButton" then
+      if removal and UIDROPDOWNMENU_OPEN_MENU == removal.owner then
+        CloseDropDownMenus()
+        local pop = StaticPopup_Show("REM_ITEM_NAME", removal.item, removal.listLabel)
+        if pop then
+          pop.data = { items = removal.items, item = removal.item,
+                       label = removal.listLabel, dropdown = removal.dropdown }
+        end
+      end
+      return
+    end
+    if this.lwBaseClick then this.lwBaseClick() end
+  end
+
+  local function AddLWDropdownButton(info, level, owner, tip, removal)
+    level = level or 1
+    -- Capture native-style tooltip descriptions before deliberately clearing
+    -- them, so only the consistent Add New Item rendering is shown.
+    if not tip and info.tooltipTitle then
+      tip = { title = info.tooltipTitle, text = info.tooltipText }
+    end
+    info.tooltipTitle = nil
+    info.tooltipText = nil
+
+    UIDropDownMenu_AddButton(info, level)
+    local list = getglobal("DropDownList" .. level)
+    if not list or not list.numButtons then return end
+    local button = getglobal(list:GetName() .. "Button" .. list.numButtons)
+    if not button then return end
+
+    if not button.lwTooltipInstalled then
+      button.lwBaseEnter = button:GetScript("OnEnter")
+      button.lwBaseLeave = button:GetScript("OnLeave")
+      button.lwBaseClick = button:GetScript("OnClick")
+      button:SetScript("OnEnter", LWDropdownOnEnter)
+      button:SetScript("OnLeave", LWDropdownOnLeave)
+      button:SetScript("OnClick", LWDropdownOnClick)
+      button.lwTooltipInstalled = true
+    end
+
+    -- Replace all data when the button is recycled, including nil entries.
+    if tip then tip.owner = owner end
+    button.lwTooltip = tip
+    if removal then removal.owner = owner end
+    button.lwRemoval = removal
+    if removal then
+      button:RegisterForClicks("LeftButtonUp", "RightButtonUp")
+    else
+      button:RegisterForClicks("LeftButtonUp")
+    end
+  end
+
+  ----------------------------------------------------------------------
   -- Additional Options section
   local optionsDropdown = CreateFrame("Button", "LazyWeirdoOptionsDropdown", LazyWeirdoConfigFrame, "UIDropDownMenuTemplate")
 
@@ -1672,7 +1762,7 @@ function LazyWeirdo:CreateConfig()
         LWExtra:RefreshBuffAutomation()
       end
     end
-    UIDropDownMenu_AddButton(info, 2)
+    AddLWDropdownButton(info, 2, optionsDropdown:GetName())
   end
 
   local function AddToggleOption(opt, level)
@@ -1698,7 +1788,7 @@ function LazyWeirdo:CreateConfig()
         LWExtra:RefreshWorldChat()
       end
     end
-    UIDropDownMenu_AddButton(info, level)
+    AddLWDropdownButton(info, level, optionsDropdown:GetName())
   end
 
   local function InitializeOptionsDropdown(level)
@@ -1735,7 +1825,7 @@ function LazyWeirdo:CreateConfig()
     worldInfo.value = "LW_WORLD_CHAT"
     worldInfo.tooltipTitle = "World Chat Management"
     worldInfo.tooltipText = "Temporarily hide messages from the /world channel in selected locations. Does NOT leave /world, block players or affect Guild, Party, Raid or other chat channels. Messages return when the restriction ends."
-    UIDropDownMenu_AddButton(worldInfo, 1)
+    AddLWDropdownButton(worldInfo, 1, optionsDropdown:GetName())
 
     local salvationInfo = {}
     salvationInfo.text = "Salvation Remover"
@@ -1744,14 +1834,16 @@ function LazyWeirdo:CreateConfig()
     salvationInfo.value = "LW_SALVATION"
     salvationInfo.tooltipTitle = "Salvation Remover"
     salvationInfo.tooltipText = "Choose Off, Always or Smart. Smart removes Salvation only when your class, equipped shield or active form indicates tanking."
-    UIDropDownMenu_AddButton(salvationInfo, 1)
+    AddLWDropdownButton(salvationInfo, 1, optionsDropdown:GetName())
 
     local bgInfo = {}
     bgInfo.text = "Battlegrounds"
     bgInfo.notCheckable = 1
     bgInfo.hasArrow = 1
     bgInfo.value = "LW_BATTLEGROUNDS"
-    UIDropDownMenu_AddButton(bgInfo, 1)
+    bgInfo.tooltipTitle = "Battlegrounds"
+    bgInfo.tooltipText = "Configure BG auto-queue, auto-enter, auto-leave, auto-release and shared-quest handling."
+    AddLWDropdownButton(bgInfo, 1, optionsDropdown:GetName())
   end
 
   UIDropDownMenu_Initialize(optionsDropdown, InitializeOptionsDropdown)
@@ -1811,8 +1903,9 @@ function LazyWeirdo:CreateConfig()
             btn:SetHighlightTextColor(r, g, b)
           end
         end
-        UIDropDownMenu_AddButton(info)
-        btnIdx = btnIdx + 1
+        AddLWDropdownButton(info, 1, frameName, {
+          title = label, text = "Enable or disable this list of items."
+        })
       end
 
       -- "Add New item" entry
@@ -1820,6 +1913,7 @@ function LazyWeirdo:CreateConfig()
       info.text = "Add New item"
       info.func = function ()
         local add = StaticPopup_Show(popup, label)
+        if not add then return end
         add.data = { items = items, label = label, toggleable = opts.toggleable }
         local editbox = getglobal(add:GetName().."EditBox")
 
@@ -1838,7 +1932,7 @@ function LazyWeirdo:CreateConfig()
         local orig_ChatFrame_OnHyperlinkShow = (function ()
           local orig = ChatFrame_OnHyperlinkShow
           ChatFrame_OnHyperlinkShow = function (link,text,button,a3,a4,a5,a6,a7,a8,a9,a10)
-            if (button == "LeftButton" and IsShiftKeyDown() and not ignoreModifiers and editbox:IsShown()) then
+            if (button == "LeftButton" and IsShiftKeyDown() and editbox:IsShown()) then
               editbox:Insert(ItemLinkToName(text))
             else
               orig(link,text,button,a3,a4,a5,a6,a7,a8,a9,a10)
@@ -1856,36 +1950,16 @@ function LazyWeirdo:CreateConfig()
       info.textR = 0.1
       info.textG = 0.8
       info.textB = 0.1
-      UIDropDownMenu_AddButton(info)
-      btnIdx = btnIdx + 1
+      AddLWDropdownButton(info, 1, frameName, {
+        title = label, extra = tooltip_extra, text = tooltip,
+        hint = "Right-click an item to remove it."
+      })
 
-      -- tooltip on "Add New item" button
-      local addBtn = getglobal("DropDownList1Button"..btnIdx)
-      if addBtn then
-        if not addBtn.el_orig_enter then
-          addBtn.el_orig_enter = addBtn:GetScript("OnEnter")
-          addBtn.el_orig_leave = addBtn:GetScript("OnLeave")
-        end
-        addBtn.el_dropdown_owner = frameName
-        addBtn:SetScript("OnEnter", function()
-          if this.el_orig_enter then this.el_orig_enter() end
-          if UIDROPDOWNMENU_OPEN_MENU ~= this.el_dropdown_owner then return end
-          GameTooltip:SetOwner(this, "ANCHOR_BOTTOMRIGHT")
-          GameTooltip:SetText(label, C.TOOLTIP_R, C.TOOLTIP_G, C.TOOLTIP_B)
-          if tooltip_extra then GameTooltip:AddLine(tooltip_extra, 1, 1, 1, true) end
-          GameTooltip:AddLine(tooltip, 1, 1, 1, true)
-          GameTooltip:AddLine("Right-click an item to remove it.", 0.5, 0.5, 0.5, true)
-          GameTooltip:Show()
-        end)
-        addBtn:SetScript("OnLeave", function()
-          if this.el_orig_leave then this.el_orig_leave() end
-          GameTooltip:Hide()
-        end)
-      end
-
-      -- item entries (toggleable = { name, enabled [, count] } objects; plain = flat strings)
+      -- Item entry buttons share the same stable tooltip/right-click handler.
+      -- Setting a fresh removal payload for each visible entry prevents stale
+      -- actions from being inherited by an unrelated options dropdown.
       if opts.toggleable then
-        for _,entry in ipairs(items) do
+        for _, entry in ipairs(items) do
           if entry.enabled == nil then entry.enabled = true end
           local displayText = entry.count and (entry.count .. "x " .. entry.name) or entry.name
           local thisEntry = entry
@@ -1894,51 +1968,28 @@ function LazyWeirdo:CreateConfig()
           info.value = entry.name
           info.keepShownOnClick = 1
           info.checked = entry.enabled and 1 or nil
-          info.func = function ()
+          info.func = function()
             thisEntry.enabled = not thisEntry.enabled
           end
-          UIDropDownMenu_AddButton(info)
-          btnIdx = btnIdx + 1
-
-          local btn = getglobal("DropDownList1Button"..btnIdx)
-          if btn then
-            btn.el_remove_entry = entry
-            btn.el_dropdown_owner = frameName
-            btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            btn:SetScript("OnClick", function()
-              if UIDROPDOWNMENU_OPEN_MENU == this.el_dropdown_owner and arg1 == "RightButton" then
-                CloseDropDownMenus()
-                local pop = StaticPopup_Show("REM_ITEM_NAME", this.el_remove_entry.name, label)
-                pop.data = { items = items, item = this.el_remove_entry.name, label = label, dropdown = dropdown }
-              else
-                UIDropDownMenuButton_OnClick()
-              end
-            end)
-          end
+          AddLWDropdownButton(info, 1, frameName, {
+            title = label, text = displayText,
+            hint = "Left-click to toggle; right-click to remove this item."
+          }, {
+            item = entry.name, items = items,
+            listLabel = label, dropdown = dropdown
+          })
         end
       else
-        for i, item in ixpairs(items) do
+        for _, item in ixpairs(items) do
           local info = {}
           info.text = item
           info.value = item
-          UIDropDownMenu_AddButton(info)
-          btnIdx = btnIdx + 1
-
-          local btn = getglobal("DropDownList1Button"..btnIdx)
-          if btn then
-            btn.el_remove_item = item
-            btn.el_dropdown_owner = frameName
-            btn:RegisterForClicks("LeftButtonUp", "RightButtonUp")
-            btn:SetScript("OnClick", function()
-              if UIDROPDOWNMENU_OPEN_MENU == this.el_dropdown_owner and arg1 == "RightButton" then
-                CloseDropDownMenus()
-                local pop = StaticPopup_Show("REM_ITEM_NAME", this.el_remove_item, label)
-                pop.data = { items = items, item = this.el_remove_item, label = label, dropdown = dropdown }
-              else
-                UIDropDownMenuButton_OnClick()
-              end
-            end)
-          end
+          AddLWDropdownButton(info, 1, frameName, {
+            title = label, text = item, hint = "Right-click to remove this item."
+          }, {
+            item = item, items = items,
+            listLabel = label, dropdown = dropdown
+          })
         end
       end
     end
