@@ -502,8 +502,6 @@ local toggle_options = {
   { label = "Pass on Greys",   setting = "pass_greys",      default = false, tooltip = "Do not loot grey items." },
   { label = "Untrack in Raid", setting = "raid_untrack",   default = false, tooltip = "Remove Find Herbs and Find Minerals tracking when entering a raid instance." },
   { label = "Holy Water Only", setting = "only_holy",       default = false, tooltip = "Only loot holy water from Stratholme Chests." },
-  { label = "Stack Split / Merge", setting = "stack_split", default = false, tooltip = "Shift-right-click to choose a stack amount; hold Alt to increase or Ctrl to decrease." },
-  { label = "Improved Right Click", setting = "improved_right_click", default = false, tooltip = "Right-click items to attach to mail, add to trade, or set up auctions." },
   { label = "Repeatable Quests (Alt)", setting = "quest_repeat", default = false, tooltip = "Hold Alt during hand-in to record and replay a repeatable quest and reward." },
   { label = "Chat Spam Filter", setting = "chat_spam_filter", default = false, tooltip = "Hide 70-second duplicate player messages, except friends and guild." },
   { label = "Loot Message Filter", setting = "chat_loot_filter", default = false, tooltip = "Hide chat messages containing green or blue loot links." },

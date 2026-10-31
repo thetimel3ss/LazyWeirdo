@@ -9,14 +9,6 @@ handlers or automatic Need/Greed/Pass rules are imported.
 Open `/lw`, then the existing **Options** dropdown. All new automations
 start disabled; existing settings are not reset or replaced.
 
-- **Stack Split / Merge:** Shift + right-click an item to start, hold Alt to
-  increase or Ctrl to decrease the requested stack size, then Shift + right-click
-  the same item (split) or a matching item stack (merge). Operations time out
-  automatically.
-- **Improved Right Click:** with the appropriate trade/mail/auction window
-  open, right-click a bag item to place it or search the auction house.
-  Intended for Blizzard default trade/mail/auction UI; third-party mail mods
-  need separate compatibility verification.
 - **Repeatable Quests (Alt):** hold Alt during the first quest hand-in and
   keep holding it while speaking to the same quest giver to replay that
   quest, including the reward choice. Let go of Alt to clear the recording.
@@ -90,21 +82,16 @@ After updating the addon, **reload the UI** and test the following:
    submenus. Select multiple World Chat locations independently; choose
    exactly one Salvation mode (Off, Always, Smart); reload and confirm all
    choices persist per character. Confirm neither submenu throws a Lua error.
-4. Test splitting a stack, merging two identical stacks, full bags, locked
-   stacks and inventory changes during an operation.
-5. Test right-click in default trade, mail (including non-mailable items),
-   Auction Browse and Create Auction. Confirm no messages or auctions are
-   sent/submitted without the player's deliberate confirmation.
-6. Test a repeatable quest with no selectable reward and another with
+4. Test a repeatable quest with no selectable reward and another with
    multiple reward choices. Release Alt, try a different quest, and confirm
    no incorrect reward is automatically selected.
-7. Test World channel masking across world, dungeons, raids and BGs; ensure
+5. Test World channel masking across world, dungeons, raids and BGs; ensure
    manual World departure is respected. Test spam across two chat windows.
-8. Test each BG option separately, including BG invitation expiry, AFK,
+6. Test each BG option separately, including BG invitation expiry, AFK,
    post-match exit and the quest-share popup.
-9. Test Warrior/Druid stance switching, Salvation Smart on tank/non-tank,
+7. Test Warrior/Druid stance switching, Salvation Smart on tank/non-tank,
    and the Mana Buff Remover outside/inside BGs.
-10. Check native Key Bindings for every action and confirm no existing
+8. Check native Key Bindings for every action and confirm no existing
     shortcuts were overwritten.
 
 **Status:** code integrated and structurally reviewed; the World Chat /
@@ -119,7 +106,7 @@ APIs require in-game verification.
 - Quest workflow inspired by [MarcelineVQ/QuestRepeat](https://github.com/MarcelineVQ/QuestRepeat),
   whose source explicitly declares **LGPL v2.1**. Original author attribution
   and license notices should be retained if reusing or modifying that code.
-- Inventory, battleground and other quality-of-life behaviors were studied
+- Battleground and other quality-of-life behaviors were studied
   from [Otari98/_LazyPig](https://github.com/Otari98/_LazyPig).
   The implementation here is written in separate modules, not pasted from
   that repository. No additional permission to relicense upstream code is
@@ -133,3 +120,17 @@ are preserved.
 
 Validated in game by the maintainer on 2026-10-31: a character without prior
 configuration starts with **Off** for World and Dungeon BoEs.
+
+## Inventory conveniences removed
+
+Stack splitting/merging and contextual right-click handling have been removed,
+along with their Options entries and inventory module. Use the client stack
+splitting interface and native or dedicated addon trade/mail/auction workflows.
+LazyWeirdo no longer wraps `UseContainerItem`; existing saved values for the
+removed options are ignored. Loot rules and vendor automation are unchanged.
+
+After reloading, verify that Options opens without the removed entries, native
+Shift-left-click stack splitting works, and trade/mail/auction behavior works
+with the installed addons (including TurtleMail). Also check automatic vendor
+selling. The maintainer confirmed in-game validation of these changes on
+2026-10-31.

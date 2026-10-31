@@ -8,7 +8,6 @@
 
 LazyWeirdo.lua
 Modules\Controller.lua
-Modules\Inventory.lua
 Modules\Battlegrounds.lua
 Modules\Quests.lua
 Modules\Chat.lua
