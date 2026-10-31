@@ -124,3 +124,12 @@ APIs require in-game verification.
   The implementation here is written in separate modules, not pasted from
   that repository. No additional permission to relicense upstream code is
   implied by the existence of this personal development branch.
+
+## World and dungeon BoE default
+
+The initial World and Dungeon BoE rule (`Other`) is now **Off**, leaving rolls
+manual unless a matching enabled whitelist applies. Existing saved settings
+are preserved.
+
+Validated in game by the maintainer on 2026-10-31: a character without prior
+configuration starts with **Off** for World and Dungeon BoEs.

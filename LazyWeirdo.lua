@@ -533,7 +533,7 @@ local bg_toggle_options = {
 }
 
 local default_settings = {
-  general_boe_rule = GREED,
+  general_boe_rule = OFF,
   auto_buy = true,
   auto_sell_list = true,
   need_whitelist = true,
