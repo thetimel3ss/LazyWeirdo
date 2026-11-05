@@ -86,6 +86,7 @@ end
 local LazyWeirdo = CreateFrame("Frame","LazyWeirdo")
 
 local binds = {}
+local authorized_loot = {}
 local ITEM_COLOR = "|cff88bbdd"
 
 ------------------------------
@@ -601,27 +602,53 @@ function LazyWeirdo:START_LOOT_ROLL(roll_id,time_left)
   if r >= 0 then RollOnLoot(roll_id,r) end
 end
 
-function LazyWeirdo:LOOT_BIND_CONFIRM(slot)
-  -- solo play, queue the loot for accepting
-  if not InGroup() then
-    debug_print("solo bind")
-    table.insert(binds,slot)
-    return
-  end
+-- Reputation turn-in items may be BoP without a "Quest Item" tooltip line.
+-- Identify only the three Argent Dawn stones, independent of client language.
+local scourgestone_ids = { [12840] = true, [12841] = true, [12843] = true }
 
-  -- check whitelists if in group, say if everyone passed already
-  -- could happen if you shift-click the boss and don't autoloot
-  local _texture, item, _quantity, quality = GetLootSlotInfo(slot)
-  local r = LazyWeirdo:HandleItem(item, {bop = true})
-  if r > 0 then
-    debug_print("party bind")
+local function IsScourgestone(slot)
+  local link = GetLootSlotLink(slot)
+  local _, _, id = string.find(link or "", "item:(%d+)")
+  return id and scourgestone_ids[tonumber(id)] or false
+end
+
+-- Record the exact item before LootSlot can emit a bind confirmation.
+local function LootAuthorizedSlot(slot)
+  authorized_loot[slot] = GetLootSlotLink(slot)
+  LootSlot(slot,true)
+end
+
+function LazyWeirdo:LOOT_BIND_CONFIRM(slot)
+  local link = GetLootSlotLink(slot)
+  if link and authorized_loot[slot] == link then
+    for _, pending in ipairs(binds) do
+      if pending == slot then return end
+    end
     table.insert(binds,slot)
-    return
   end
 end
 
 function LazyWeirdo:LOOT_SLOT_CLEARED(slot)
+  authorized_loot[slot] = nil
+  for i = table.getn(binds), 1, -1 do
+    if binds[i] == slot then table.remove(binds, i) end
+  end
 end
+
+local function ConfirmPendingLoot()
+  local slot = table.remove(binds)
+  if not slot then return end
+  local link = GetLootSlotLink(slot)
+  if link and authorized_loot[slot] == link then
+    -- Consume authorization before confirming to avoid repeated confirmations.
+    authorized_loot[slot] = nil
+    LootSlot(slot)
+    StaticPopup_Hide("LOOT_BIND")
+  end
+end
+
+-- Bind events may arrive after LOOT_OPENED has finished.
+LazyWeirdo:SetScript("OnUpdate", ConfirmPendingLoot)
 
 -- a BoP item ask, these can be autorolled but only by explicit whitelist
 function LazyWeirdo:CONFIRM_LOOT_ROLL(roll_id,roll_type)
@@ -640,16 +667,14 @@ end
 
 local elTooltip = CreateFrame("GameTooltip", "elTooltip", UIParent, "GameTooltipTemplate")
 
--- item info cache keyed by item name
--- values: { bop = bool, boe = bool, quest = bool, unique = bool }
-local item_info_cache = {}
+-- Scan each slot afresh: incomplete tooltips must not persist across corpses.
 
 local function ScanLootItem(slot)
   local _texture, name = GetLootSlotInfo(slot)
   if not name then return nil end
-  if item_info_cache[name] then return item_info_cache[name] end
 
   elTooltip:SetOwner(UIParent, "ANCHOR_PRESERVE")
+  elTooltip:ClearLines()
   elTooltip:SetLootItem(slot)
 
   local info = { bop = false, boe = false, quest = false, unique = false }
@@ -658,20 +683,19 @@ local function ScanLootItem(slot)
     if line then
       local text = line:GetText()
       if text then
-        if text == "Soulbound" or text == "Binds when picked up" then
+        if text == (ITEM_SOULBOUND or "Soulbound") or text == (ITEM_BIND_ON_PICKUP or "Binds when picked up") then
           info.bop = true
-        elseif text == "Binds when equipped" then
+        elseif text == (ITEM_BIND_ON_EQUIP or "Binds when equipped") then
           info.boe = true
-        elseif text == "Quest Item" then
+        elseif text == (ITEM_BIND_QUEST or "Quest Item") then
           info.quest = true
-        elseif text == "Unique" then
+        elseif text == (ITEM_UNIQUE or "Unique") then
           info.unique = true
         end
       end
     end
   end
 
-  item_info_cache[name] = info
   return info
 end
 
@@ -683,6 +707,8 @@ if pfUI and pfUI.loot then
 end
 
 function LazyWeirdo:LOOT_OPENED()
+  binds = {}
+  authorized_loot = {}
   local shift = IsShiftKeyDown()
   if (not LazyWeirdoDB.settings.shift_to_loot and shift) or (LazyWeirdoDB.settings.shift_to_loot and not shift) then
     orig_pfUI_UpdateLootFrame()
@@ -697,8 +723,8 @@ function LazyWeirdo:LOOT_OPENED()
       local _texture, item, _quantity, quality = GetLootSlotInfo(slot)
       if LootSlotIsCoin(slot) then
         LootSlot(slot,true)
-      elseif LootSlotIsItem(slot) and string.lower(item) == water then
-        LootSlot(slot,true)
+      elseif LootSlotIsItem(slot) and item and string.lower(item) == water then
+        LootAuthorizedSlot(slot)
         return
       end
     end
@@ -719,8 +745,13 @@ function LazyWeirdo:LOOT_OPENED()
         -- loot is on our pass list
         debug_print("passlist "..item)
 
-      -- quest items are always personal loot, grab them regardless of group/ML state
-      -- unless they're also BoP and we are the master looter
+      -- Personal reputation stones must not depend on tooltip quest detection
+      -- or the general group/raid equipment rules (including Master Loot).
+      elseif IsScourgestone(slot) then
+        debug_print("scourgestone "..item)
+        LootAuthorizedSlot(slot)
+
+      -- Preserve the master-looter restriction for other quest BoP items.
       elseif info and info.quest then
         if info.bop then
           local _, _, mlRaidId = GetLootMethod()
@@ -728,11 +759,11 @@ function LazyWeirdo:LOOT_OPENED()
             debug_print("questloot bop ML skip "..item)
           else
             debug_print("questloot bop "..item)
-            LootSlot(slot,true)
+            LootAuthorizedSlot(slot)
           end
         else
           debug_print("questloot "..item)
-          LootSlot(slot,true)
+          LootAuthorizedSlot(slot)
         end
       elseif (quality == 0 and LazyWeirdoDB.settings.pass_greys) and not (r > 0 and on_whitelist) then
         -- do nothing, unless it's a whitelist item
@@ -746,15 +777,11 @@ function LazyWeirdo:LOOT_OPENED()
       -- finally loot whatever wasn't handled above
       else
         debug_print("looting "..item)
-        LootSlot(slot,true)
+        LootAuthorizedSlot(slot)
       end
     end
-    -- it the above looting caused a bind, resolve it
-    -- seems like an odd place/way to do it, but trying it any other way wasn't consistent
-    if next(binds) then
-      LootSlot(table.remove(binds))
-      StaticPopup_Hide("LOOT_BIND")
-    end
+    -- Resolve synchronous bind events; OnUpdate handles delayed events.
+    ConfirmPendingLoot()
   end
   debug_print("binds left: " .. tsize(binds))
 
@@ -763,7 +790,8 @@ function LazyWeirdo:LOOT_OPENED()
 end
 
 function LazyWeirdo:LOOT_CLOSED()
-  -- binds = {}
+  binds = {}
+  authorized_loot = {}
 end
 
 ------------------------------

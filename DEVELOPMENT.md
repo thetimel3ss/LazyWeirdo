@@ -134,3 +134,32 @@ Shift-left-click stack splitting works, and trade/mail/auction behavior works
 with the installed addons (including TurtleMail). Also check automatic vendor
 selling. The maintainer confirmed in-game validation of these changes on
 2026-10-31.
+
+## Quest-item loot confirmation
+
+Automatic bind confirmation now requires authorization for the same loot slot
+and item link from the current loot window. This covers quest BoP items that
+are eligible for automatic pickup even when their general roll rule is Off.
+Manual pickup keeps its manual confirmation. Pass-list restrictions remain
+in place. Master-looter restrictions remain in place for other items; the
+three Argent Dawn Scourgestones have a specific pickup exception by item ID
+(12840, 12841, 12843). Pending slots are cleared when looting opens,
+closes, or the slot is emptied. Delayed bind events are processed on OnUpdate.
+Tooltips are cleared and scanned again per slot using client localization
+constants with English fallbacks, without a persistent item-name cache.
+
+The user confirmed Scourgestone automatic pickup works in the client after
+the item-ID exception was added. The full scenario matrix below remains to
+be validated:
+- Loot a quest BoP item solo and in a group with its roll rule set to Off.
+  Verify pickup and automatic confirmation, including delayed confirmations.
+- Put the item on the enabled Pass List; verify no automatic pickup or bind
+  confirmation. Hold Shift to bypass autoloot and verify confirmation is manual.
+- Test all three Scourgestones solo, in a group with Off/Pass as the general
+  rule, and as Master Looter. Verify automatic pickup even when the tooltip
+  has no Quest Item line. Verify the enabled Pass List still prevents pickup.
+- As raid master looter, verify other quest BoP items remain untouched.
+- Close a pending loot window, open another corpse, and verify its slots are
+  never confirmed using the previous window's authorization.
+- Test full bags, an emptied slot, and two successive corpses carrying the same
+  item. Verify no repeated bind attempts or stale tooltip classification.
